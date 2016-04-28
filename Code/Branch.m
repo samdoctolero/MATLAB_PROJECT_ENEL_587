@@ -8,12 +8,12 @@ classdef Branch
     end
     
     methods (Access = public)
-        function [this] = Branch(from, to, r, x)
+        function [this] = Branch(from, to, r, x,b)
             %Constructor
             this.busFrom = from;
             this.busTo = to;
             this.Z = Impedance(r,x);
-            y = 1/this.Z.z;
+            y = 1/this.Z.z + 1i*b;
             this.Y = Admittance(real(y), imag(y));
         end
     end

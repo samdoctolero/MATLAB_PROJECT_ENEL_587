@@ -126,8 +126,8 @@ classdef PowerSolver < handle
                 toBus = str2double(line(1,6:9));
                 r = str2double(line(1,20:29));
                 x = str2double(line(1,30:40));
-                
-                temp = Branch(fromBus, toBus, r, x);
+                b = str2double(line(1,41:50));
+                temp = Branch(fromBus, toBus, r, x,b);
                 if (numel(arrBranch) > 0)
                     arrBranch = [arrBranch ; temp];
                 else
@@ -224,23 +224,23 @@ classdef PowerSolver < handle
                     %Take into account the power values for PQ and PV
                     %busses
                     if(~isempty(strActive))
-                        strActive = [strActive  sprintf('F(%g) = (%g) ', pfEqCount,tBus(i).powerMW/tSBase)];
+                        strActive = [strActive  sprintf('F(%g) = (%g) ', pfEqCount,(tBus(i).powerMW/tSBase))];
                         pfEqCount = pfEqCount - 1;
                         if(tBus(i).type == BusType.PQ)
-                            strReactive = [strReactive  sprintf('F(%g) = (%g) ', pfEqCount,tBus(i).powerMVar/tSBase)];
+                            strReactive = [strReactive  sprintf('F(%g) = (%g) ', pfEqCount,(tBus(i).powerMVar/tSBase))];
                             pfEqCount = pfEqCount - 1;
                         end
                     else
-                        strActive = sprintf('F(%g) = (%g) ', pfEqCount,tBus(i).powerMW/tSBase);
+                        strActive = sprintf('F(%g) = (%g) ', pfEqCount,(tBus(i).powerMW/tSBase));
                         pfEqCount = pfEqCount - 1;
                         if(tBus(i).type == BusType.PQ)
-                            strReactive = sprintf('F(%g) = (%g) ', pfEqCount,tBus(i).powerMVar/tSBase);
+                            strReactive = sprintf('F(%g) = (%g) ', pfEqCount,(tBus(i).powerMVar/tSBase));
                             pfEqCount = pfEqCount - 1;
                         end
                     end
                     %Now include the rest of the power equations:
                     % P = Vi*Vj*Yij*cos(thetaij - phi_i + phi_j)
-                    % Q = Vi*Vj*Yio*sin(thetaij - phi_i + phi_j)
+                    % Q = Vi*Vj*Yij*sin(thetaij - phi_i + phi_j)
                     for j = 1:numel(tBus)
                         magY = abs(tY(i,j));
                         theta = angle(tY(i,j));
@@ -359,7 +359,7 @@ classdef PowerSolver < handle
                     %is compromised
                     if(isnan(dx(i)) || dx(i) == Inf)
                         fprintf('Solution does not converge. Change initial values\n');
-                        x = NaN;
+                        x = [];
                         if(nargout > 1)
                             dError = inf;
                         end
@@ -420,20 +420,29 @@ classdef PowerSolver < handle
                 [x] = this.NewtonRaphson(initX,eqFuncName,threshold);
             end
             
+            if isempty(x)
+                output = [];
+                return;
+            end
             varTemp = this.unknownVars;
             
             %Organize the output and store them in their proper bus data
+            for i = 1:numel(varTemp)
+                switch varTemp(i).type
+                    case VariableType.ANGLE
+                        this.bus(varTemp(i).busNumber).angleRad = x(varTemp(i).number);
+                        this.bus(varTemp(i).busNumber).angleDeg = x(varTemp(i).number)*180/pi;
+                    case VariableType.VOLTAGE
+                        this.bus(varTemp(i).busNumber).voltage = x(varTemp(i).number);
+                end
+            end
+            %Now update the power in each bus
             for i = 1:numel(varTemp)
                 switch varTemp(i).type
                     case VariableType.ACTIVE_POWER
                         this.bus(varTemp(i).busNumber).powerMW = Bus.MWPowerSolver(varTemp(i).busNumber,this.bus,this.Ymat)*this.Sbase;
                     case VariableType.REACTIVE_POWER
                         this.bus(varTemp(i).busNumber).powerMVar = Bus.MVarPowerSolver(varTemp(i).busNumber,this.bus,this.Ymat)*this.Sbase;
-                    case VariableType.ANGLE
-                        this.bus(varTemp(i).busNumber).angleRad = x(varTemp(i).number);
-                        this.bus(varTemp(i).busNumber).angleDeg = x(varTemp(i).number)*180/pi;
-                    case VariableType.VOLTAGE
-                        this.bus(varTemp(i).busNumber).voltage = x(varTemp(i).number);
                 end
             end
             

@@ -31,26 +31,34 @@ classdef Bus < handle
     methods (Static)
         function [P] = MWPowerSolver(i, bus, Y)
             P = 0;
+            Vi = bus(i).voltage;
+            deltai = bus(i).angleRad;
             for j = 1:numel(bus)
-                temp = (bus(i).voltage)*(bus(j).voltage) ...
-                    *(abs(Y(i,j)))*cos(angle((Y(i,j))) ...
-                    - (bus(i).angleRad) + (bus(j).angleRad));
+                Vj = bus(j).voltage;
+                deltaj = bus(j).angleRad;
+                Yabs = abs(Y(i,j));
+                theta = angle(Y(i,j));
+                temp = Vi*Vj*Yabs*cos(theta - deltai + deltaj );
                 P = P + temp;
             end
-            if(P <= 1e-10)
+            if(abs(P) <= 1e-10)
                 P = 0;
             end
         end
         
         function [Q] = MVarPowerSolver(i, bus, Y)
             Q = 0;
+            Vi = bus(i).voltage;
+            deltai = bus(i).angleRad;
             for j = 1:numel(bus)
-                temp = (bus(i).voltage)*(bus(j).voltage) ...
-                    *(abs(Y(i,j)))*sin(angle(Y(i,j)) ...
-                    - (bus(i).angleRad) + (bus(j).angleRad));
-                Q = Q - temp;
+                Vj = bus(j).voltage;
+                deltaj = bus(j).angleRad;
+                Yabs = abs(Y(i,j));
+                theta = angle(Y(i,j));
+                temp = Vi*Vj*Yabs*sin(theta - deltai + deltaj );
+                Q = Q + temp;
             end
-            if (Q <= 1e-10)
+            if (abs(Q) <= 1e-10)
                 Q = 0;
             end
         end
